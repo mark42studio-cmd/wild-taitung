@@ -101,12 +101,25 @@ function Toast({ children }: { children: React.ReactNode }) {
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
-export default function TopRightActionNav({ isSheetOpen = false }: { isSheetOpen?: boolean }) {
-
+export default function TopRightActionNav({
+  sheetExpanded = false,
+  fabOpen: externalFabOpen,
+  onFabClose,
+}: {
+  sheetExpanded?: boolean;
+  fabOpen?: boolean;
+  onFabClose?: () => void;
+}) {
   const [showReport, setShowReport] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [likeCount, setLikeCount] = useState(0);
-  const [fabOpen, setFabOpen] = useState(false);
+  const [internalFabOpen, setInternalFabOpen] = useState(false);
+  const isExternalMode = externalFabOpen !== undefined;
+  const fabOpen = isExternalMode ? externalFabOpen! : internalFabOpen;
+  function closeFab() {
+    if (isExternalMode) onFabClose?.();
+    else setInternalFabOpen(false);
+  }
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const likeEmojiRef = useRef<HTMLSpanElement>(null);
   const likeEmojiSmRef = useRef<HTMLSpanElement>(null);
@@ -123,7 +136,7 @@ export default function TopRightActionNav({ isSheetOpen = false }: { isSheetOpen
   }
 
   function handleInstallApp() {
-    setFabOpen(false);
+    closeFab();
     window.dispatchEvent(new CustomEvent('wildTaitung:openPwaGuide'));
   }
 
@@ -139,187 +152,153 @@ export default function TopRightActionNav({ isSheetOpen = false }: { isSheetOpen
     showToast(`感謝你的肯定，小助手充滿了力量 ☕ (累計 ${next} 個讚)`);
   }
 
-  const btnCls = 'flex flex-col items-center gap-0.5 rounded-xl p-2';
+  const btnCls = 'flex flex-col items-center justify-center gap-0.5 rounded-xl p-2 w-14';
 
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0, x: 16 }}
-        animate={isSheetOpen
-          ? { opacity: 0, x: 72, pointerEvents: 'none' }
-          : { opacity: 1, x: 0,  pointerEvents: 'auto' }
-        }
-        transition={{ type: 'spring', stiffness: 340, damping: 28 }}
-        className="fixed top-5 right-5 z-[38]"
-      >
+      {/* ── Large screens (sm+): all buttons always visible, positioned by parent wrapper ── */}
+      <div className="hidden sm:flex flex-col gap-1.5">
+        <motion.button
+          onClick={() => setShowReport(true)}
+          initial={{ opacity: 0, x: 8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0, type: 'spring', stiffness: 340, damping: 28 }}
+          whileHover={{ scale: 1.1, x: -2 }}
+          whileTap={{ scale: 0.93 }}
+          className={btnCls}
+          style={NAV_GLASS}
+          title="報修"
+        >
+          <span className="text-[18px] leading-none">🔧</span>
+          <span className="text-[8px] font-bold tracking-wide">報修</span>
+        </motion.button>
 
-            {/* ── Large screens (sm+): all 3 buttons always visible ── */}
-            <div className="hidden sm:flex flex-col gap-1.5">
-              <motion.button
-                onClick={() => setShowReport(true)}
-                initial={{ opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0, type: 'spring', stiffness: 340, damping: 28 }}
-                whileHover={{ scale: 1.1, x: -2 }}
-                whileTap={{ scale: 0.93 }}
-                className={btnCls}
-                style={NAV_GLASS}
-                title="報修"
-              >
-                <span className="text-[18px] leading-none">🔧</span>
-                <span className="text-[8px] font-bold tracking-wide">報修</span>
-              </motion.button>
+        <motion.button
+          onClick={handleLike}
+          initial={{ opacity: 0, x: 8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.06, type: 'spring', stiffness: 340, damping: 28 }}
+          whileHover={{ scale: 1.1, x: -2 }}
+          whileTap={{ scale: 0.93 }}
+          className={btnCls}
+          style={NAV_GLASS}
+          title="給個讚"
+        >
+          <span ref={likeEmojiRef} className="inline-block text-[18px] leading-none">👍</span>
+          <span className="text-[8px] font-bold tracking-wide">
+            {likeCount > 0 ? likeCount : '讚'}
+          </span>
+        </motion.button>
 
-              <motion.button
-                onClick={handleLike}
-                initial={{ opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.06, type: 'spring', stiffness: 340, damping: 28 }}
-                whileHover={{ scale: 1.1, x: -2 }}
-                whileTap={{ scale: 0.93 }}
-                className={btnCls}
-                style={NAV_GLASS}
-                title="給個讚"
-              >
-                <span ref={likeEmojiRef} className="inline-block text-[18px] leading-none">👍</span>
-                <span className="text-[8px] font-bold tracking-wide">
-                  {likeCount > 0 ? likeCount : '讚'}
-                </span>
-              </motion.button>
+        <motion.a
+          href="https://buymeacoffee.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+          initial={{ opacity: 0, x: 8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.12, type: 'spring', stiffness: 340, damping: 28 }}
+          whileHover={{ scale: 1.1, x: -2 }}
+          whileTap={{ scale: 0.93 }}
+          className={btnCls}
+          style={NAV_GLASS}
+          title="請小助手喝咖啡"
+        >
+          <span className="text-[18px] leading-none">☕</span>
+          <span className="text-[8px] font-bold tracking-wide">請小助手</span>
+        </motion.a>
 
-              <motion.a
-                href="https://buymeacoffee.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                initial={{ opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.12, type: 'spring', stiffness: 340, damping: 28 }}
-                whileHover={{ scale: 1.1, x: -2 }}
-                whileTap={{ scale: 0.93 }}
-                className={btnCls}
-                style={NAV_GLASS}
-                title="請小助手喝咖啡"
-              >
-                <span className="text-[18px] leading-none">☕</span>
-                <span className="text-[8px] font-bold tracking-wide">請小助手</span>
-              </motion.a>
+        <motion.button
+          onClick={handleInstallApp}
+          initial={{ opacity: 0, x: 8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.18, type: 'spring', stiffness: 340, damping: 28 }}
+          whileHover={{ scale: 1.1, x: -2 }}
+          whileTap={{ scale: 0.93 }}
+          className={btnCls}
+          style={NAV_GLASS}
+          title="安裝 App"
+        >
+          <span className="text-[18px] leading-none">📲</span>
+          <span className="text-[8px] font-bold tracking-wide">安裝 App</span>
+        </motion.button>
+      </div>
 
-              <motion.button
-                onClick={handleInstallApp}
-                initial={{ opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.18, type: 'spring', stiffness: 340, damping: 28 }}
-                whileHover={{ scale: 1.1, x: -2 }}
-                whileTap={{ scale: 0.93 }}
-                className={btnCls}
-                style={NAV_GLASS}
-                title="安裝 App"
-              >
-                <span className="text-[18px] leading-none">📲</span>
-                <span className="text-[8px] font-bold tracking-wide">安裝 App</span>
-              </motion.button>
-            </div>
+      {/* ── Small screens (< sm): FAB children — anchored above the shared bottom row ── */}
+      <AnimatePresence>
+        {fabOpen && (
+          <motion.div
+            key="fab-children"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.12 } }}
+            className="fixed right-4 bottom-[136px] z-[100] sm:hidden flex flex-col items-center gap-1.5"
+          >
+            <motion.button
+              initial={{ opacity: 0, y: 10, scale: 0.82 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ delay: 0.19, type: 'spring', stiffness: 420, damping: 24 }}
+              onClick={handleInstallApp}
+              whileHover={{ scale: 1.1, x: -2 }}
+              whileTap={{ scale: 0.93 }}
+              className={btnCls}
+              style={NAV_GLASS}
+              title="安裝 App"
+            >
+              <span className="text-[18px] leading-none">📲</span>
+              <span className="text-[8px] font-bold tracking-wide">安裝 App</span>
+            </motion.button>
 
-            {/* ── Small screens (< sm): Speed Dial FAB ── */}
-            <div className="flex sm:hidden flex-col items-center gap-1.5">
+            <motion.a
+              href="https://buymeacoffee.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              initial={{ opacity: 0, y: 10, scale: 0.82 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ delay: 0.14, type: 'spring', stiffness: 420, damping: 24 }}
+              whileHover={{ scale: 1.1, x: -2 }}
+              whileTap={{ scale: 0.93 }}
+              className={btnCls}
+              style={NAV_GLASS}
+              title="請小助手喝咖啡"
+            >
+              <span className="text-[18px] leading-none">☕</span>
+              <span className="text-[8px] font-bold tracking-wide">請小助手</span>
+            </motion.a>
 
-              {/* Toggle button */}
-              <motion.button
-                id="tour-fab-toggle"
-                onClick={() => setFabOpen(f => !f)}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.93 }}
-                className="flex items-center justify-center w-11 h-11 rounded-xl bg-white/90 backdrop-blur-sm shadow-sm text-stone-700 transition-all duration-150 hover:bg-white active:scale-95"
-                title={fabOpen ? '收起' : '更多動作'}
-              >
-                <motion.span
-                  className="text-xl leading-none font-semibold"
-                  animate={{ rotate: fabOpen ? 45 : 0 }}
-                  transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-                >
-                  +
-                </motion.span>
-              </motion.button>
+            <motion.button
+              initial={{ opacity: 0, y: 10, scale: 0.82 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ delay: 0.09, type: 'spring', stiffness: 420, damping: 24 }}
+              onClick={handleLike}
+              whileHover={{ scale: 1.1, x: -2 }}
+              whileTap={{ scale: 0.93 }}
+              className={btnCls}
+              style={NAV_GLASS}
+              title="給個讚"
+            >
+              <span ref={likeEmojiSmRef} className="inline-block text-[18px] leading-none">👍</span>
+              <span className="text-[8px] font-bold tracking-wide">
+                {likeCount > 0 ? likeCount : '讚'}
+              </span>
+            </motion.button>
 
-              {/* Child buttons — animate downward on open */}
-              <AnimatePresence>
-                {fabOpen && (
-                  <motion.div
-                    key="fab-children"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0, transition: { duration: 0.12 } }}
-                    className="flex flex-col items-center gap-1.5"
-                  >
-                    <motion.button
-                      initial={{ opacity: 0, y: -10, scale: 0.82 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ delay: 0.04, type: 'spring', stiffness: 420, damping: 24 }}
-                      onClick={() => { setShowReport(true); setFabOpen(false); }}
-                      whileHover={{ scale: 1.1, x: -2 }}
-                      whileTap={{ scale: 0.93 }}
-                      className={btnCls}
-                      style={NAV_GLASS}
-                      title="報修"
-                    >
-                      <span className="text-[18px] leading-none">🔧</span>
-                      <span className="text-[8px] font-bold tracking-wide">報修</span>
-                    </motion.button>
-
-                    <motion.button
-                      initial={{ opacity: 0, y: -10, scale: 0.82 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ delay: 0.09, type: 'spring', stiffness: 420, damping: 24 }}
-                      onClick={handleLike}
-                      whileHover={{ scale: 1.1, x: -2 }}
-                      whileTap={{ scale: 0.93 }}
-                      className={btnCls}
-                      style={NAV_GLASS}
-                      title="給個讚"
-                    >
-                      <span ref={likeEmojiSmRef} className="inline-block text-[18px] leading-none">👍</span>
-                      <span className="text-[8px] font-bold tracking-wide">
-                        {likeCount > 0 ? likeCount : '讚'}
-                      </span>
-                    </motion.button>
-
-                    <motion.a
-                      href="https://buymeacoffee.com/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      initial={{ opacity: 0, y: -10, scale: 0.82 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ delay: 0.14, type: 'spring', stiffness: 420, damping: 24 }}
-                      whileHover={{ scale: 1.1, x: -2 }}
-                      whileTap={{ scale: 0.93 }}
-                      className={btnCls}
-                      style={NAV_GLASS}
-                      title="請小助手喝咖啡"
-                    >
-                      <span className="text-[18px] leading-none">☕</span>
-                      <span className="text-[8px] font-bold tracking-wide">請小助手</span>
-                    </motion.a>
-
-                    <motion.button
-                      initial={{ opacity: 0, y: -10, scale: 0.82 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ delay: 0.19, type: 'spring', stiffness: 420, damping: 24 }}
-                      onClick={handleInstallApp}
-                      whileHover={{ scale: 1.1, x: -2 }}
-                      whileTap={{ scale: 0.93 }}
-                      className={btnCls}
-                      style={NAV_GLASS}
-                      title="安裝 App"
-                    >
-                      <span className="text-[18px] leading-none">📲</span>
-                      <span className="text-[8px] font-bold tracking-wide">安裝 App</span>
-                    </motion.button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-      </motion.div>
+            <motion.button
+              initial={{ opacity: 0, y: 10, scale: 0.82 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ delay: 0.04, type: 'spring', stiffness: 420, damping: 24 }}
+              onClick={() => { setShowReport(true); closeFab(); }}
+              whileHover={{ scale: 1.1, x: -2 }}
+              whileTap={{ scale: 0.93 }}
+              className={btnCls}
+              style={NAV_GLASS}
+              title="報修"
+            >
+              <span className="text-[18px] leading-none">🔧</span>
+              <span className="text-[8px] font-bold tracking-wide">報修</span>
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Report Modal */}
       <AnimatePresence>

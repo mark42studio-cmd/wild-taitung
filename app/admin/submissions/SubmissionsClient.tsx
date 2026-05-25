@@ -28,6 +28,8 @@ type ApproveOverrides = {
   image_url: string | null
   quote: string | null
   tags: string[]
+  lat: number | null
+  lng: number | null
 }
 
 type ParsedComments = {
@@ -250,6 +252,35 @@ function ReviewModal({
   const [imageUrl, setImageUrl]       = useState(item.image_url ?? '')
   const [quote, setQuote]             = useState(parsed.quote ?? '')
   const [tags, setTags]               = useState(parsed.tags?.join(', ') ?? '')
+  const [lat, setLat]                 = useState('')
+  const [lng, setLng]                 = useState('')
+  const [isGeocoding, setIsGeocoding] = useState(false)
+
+  // 需在 .env.local 設定 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+  async function handleAutoFillCoordinates() {
+    const query = name.trim() || item.name
+    if (!query) {
+      alert('請先輸入景點名稱')
+      return
+    }
+    setIsGeocoding(true)
+    try {
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query + ' 台東')}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
+      const res  = await fetch(url)
+      const data = await res.json() as { status: string; results: Array<{ geometry: { location: { lat: number; lng: number } } }> }
+      if (data.status !== 'OK' || !data.results.length) {
+        alert('自動查詢失敗，請嘗試手動輸入更精確的名稱或地址')
+        return
+      }
+      const { lat: resLat, lng: resLng } = data.results[0].geometry.location
+      setLat(resLat.toFixed(6))
+      setLng(resLng.toFixed(6))
+    } catch {
+      alert('座標查詢發生錯誤，請稍後再試')
+    } finally {
+      setIsGeocoding(false)
+    }
+  }
 
   function handleConfirm() {
     onConfirm({
@@ -258,6 +289,8 @@ function ReviewModal({
       image_url:   imageUrl.trim() || null,
       quote:       quote.trim() || null,
       tags:        tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+      lat:         lat.trim() ? parseFloat(lat) : null,
+      lng:         lng.trim() ? parseFloat(lng) : null,
     })
   }
 
@@ -345,6 +378,44 @@ function ReviewModal({
               />
             </ReviewField>
 
+            {/* Lat / Lng */}
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <label className="text-[9px] font-black uppercase tracking-widest" style={{ color: accent }}>
+                  {isSpot ? '經緯度 *' : '經緯度'}
+                </label>
+                <button
+                  type="button"
+                  onClick={handleAutoFillCoordinates}
+                  disabled={isGeocoding}
+                  className="flex items-center gap-1 text-[10px] font-bold text-blue-500 hover:text-blue-700 transition-colors disabled:opacity-50"
+                >
+                  {isGeocoding
+                    ? <><Loader2 size={10} className="animate-spin" /> 座標查詢中…</>
+                    : <><MapPin size={10} /> 自動帶入座標</>
+                  }
+                </button>
+              </div>
+              <div className="flex gap-3">
+                <input
+                  value={lat}
+                  onChange={e => setLat(e.target.value)}
+                  className={`${inputClass} flex-1`}
+                  style={fieldStyle}
+                  placeholder="緯度  例：22.7583"
+                  inputMode="decimal"
+                />
+                <input
+                  value={lng}
+                  onChange={e => setLng(e.target.value)}
+                  className={`${inputClass} flex-1`}
+                  style={fieldStyle}
+                  placeholder="經度  例：121.1444"
+                  inputMode="decimal"
+                />
+              </div>
+            </div>
+
             <ReviewField label="短評金句（最多 40 字）" accent={accent}>
               <input
                 value={quote}
@@ -388,9 +459,9 @@ function ReviewModal({
             </button>
             <button
               onClick={handleConfirm}
-              disabled={!name.trim() || isPending}
+              disabled={!name.trim() || isPending || (isSpot && (!lat.trim() || !lng.trim()))}
               className="flex-[2] flex items-center justify-center gap-1.5 rounded-xl py-3 text-xs font-black text-white transition-colors disabled:opacity-40"
-              style={{ background: !name.trim() || isPending ? '#9ca3af' : accent }}
+              style={{ background: !name.trim() || isPending || (isSpot && (!lat.trim() || !lng.trim())) ? '#9ca3af' : accent }}
             >
               {isPending
                 ? <><Loader2 size={12} className="animate-spin" /> 上架中…</>

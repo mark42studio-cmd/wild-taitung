@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BedDouble, Eye, Loader2, MapPin, Plus, Search, Star, Utensils, X } from 'lucide-react';
+import { BedDouble, Eye, MapPin, Plus, Search, Star, Utensils, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { SpotOption } from '@/lib/mock/addStopData';
 
@@ -23,7 +23,8 @@ interface DbPlace {
   name: string;
   lat: number | null;
   lng: number | null;
-  category: string | null;
+  category: string | null;   // 地區代碼：city | sea | mtn | south | island
+  poi_type: string | null;   // 景點類型：food | attraction | accommodation | secret
   wild_tags: string[] | null;
   quote: string | null;
   description: string | null;
@@ -40,18 +41,18 @@ const VALLEY_KWS = ['鹿野', '初鹿', '延平', '關山', '池上', '海端', 
 const SOUTH_KWS  = ['大武', '達仁', '金峰', '太麻里', '多良', '南迴', '土坂'];
 const ISLAND_KWS = ['綠島', '蘭嶼'];
 
+// DB category 已清洗，優先精準比對；wild_tags / 地名只作 null 時兜底
 function mapDbRegion(cat: string | null, wildTags: string[], name: string): SpotOption['region'] {
-  // 軌道 1：wild_tags 中文標籤
+  if (cat === 'city')   return '台東市';
+  if (cat === 'sea')    return '東海岸';
+  if (cat === 'mtn')    return '縱谷';
+  if (cat === 'south')  return '南迴';
+  if (cat === 'island') return '離島';
+  // fallback（cat 為 null 或未知值時）
   if (wildTags.includes('東海岸')) return '東海岸';
   if (wildTags.includes('縱谷線')) return '縱谷';
   if (wildTags.includes('南迴線')) return '南迴';
   if (wildTags.includes('離島'))   return '離島';
-  // 軌道 2：category 英文代碼
-  if (cat === 'sea' || cat === 'ocean')                                          return '東海岸';
-  if (cat === 'islands')                                                          return '離島';
-  if (cat === 'mtn' || cat === 'valley' || cat === 'mountain' || cat === 'rail') return '縱谷';
-  if (cat === 'south')                                                            return '南迴';
-  // 軌道 3：地名關鍵字兜底
   if (ISLAND_KWS.some(k => name.includes(k))) return '離島';
   if (EAST_KWS.some(k => name.includes(k)))   return '東海岸';
   if (VALLEY_KWS.some(k => name.includes(k))) return '縱谷';
@@ -59,10 +60,12 @@ function mapDbRegion(cat: string | null, wildTags: string[], name: string): Spot
   return '台東市';
 }
 
-function mapDbCategory(cat: string | null): SpotOption['category'] {
-  if (cat === 'food' || cat === 'restaurant') return 'food';
-  if (cat === 'accommodation')                return 'accommodation';
-  if (cat === 'hidden' || cat === 'spring')   return 'hidden';
+// poi_type 欄位精準值：food | attraction | accommodation | secret
+// DB 用 'secret'，前端 SpotOption 用 'hidden'，其餘直接對應
+function mapPoiType(t: string | null): SpotOption['category'] {
+  if (t === 'food')          return 'food';
+  if (t === 'accommodation') return 'accommodation';
+  if (t === 'secret')        return 'hidden';
   return 'attraction';
 }
 
@@ -71,7 +74,7 @@ function dbToSpot(row: DbPlace): SpotWithLink {
   return {
     id:            row.id,
     name:          row.name ?? '',
-    category:      mapDbCategory(row.category),
+    category:      mapPoiType(row.poi_type),
     latitude:      row.lat ?? 22.7583,
     longitude:     row.lng ?? 121.1443,
     stay_duration: 90,
@@ -91,7 +94,7 @@ function dbToSpot(row: DbPlace): SpotWithLink {
 // ── DB 查詢 ────────────────────────────────────────────────────────────────
 
 const SELECT_COLS =
-  'id, name, lat, lng, category, wild_tags, quote, description, popularity, affiliate_link';
+  'id, name, lat, lng, category, poi_type, wild_tags, quote, description, popularity, affiliate_link';
 
 // 依地區 Pill 組成 Supabase or() 條件字串（與 ExploreSheet 三軌邏輯相同）
 const REGION_FILTER_MAP: Record<SpotOption['region'], { wildTag: string; cats: string[]; nameKws: string[] }> = {
@@ -99,16 +102,15 @@ const REGION_FILTER_MAP: Record<SpotOption['region'], { wildTag: string; cats: s
   '東海岸': { wildTag: '東海岸',  cats: ['sea', 'ocean'],                                       nameKws: EAST_KWS },
   '縱谷':   { wildTag: '縱谷線',  cats: ['mtn', 'valley', 'mountain', 'rail'],                  nameKws: VALLEY_KWS },
   '南迴':   { wildTag: '南迴線',  cats: ['south'],                                               nameKws: SOUTH_KWS },
-  '離島':   { wildTag: '離島',    cats: ['islands'],                                             nameKws: ISLAND_KWS },
+  '離島':   { wildTag: '離島',    cats: ['island'],                                              nameKws: ISLAND_KWS },
 };
 
 async function fetchPlaces(opts: {
   keyword: string;
   regions: SpotOption['region'][];
-  categories: SpotOption['category'][];
   limit: number;
 }): Promise<SpotWithLink[]> {
-  const { keyword, regions, categories, limit } = opts;
+  const { keyword, regions, limit } = opts;
 
   let req = supabase
     .from('places')
@@ -133,20 +135,6 @@ async function fetchPlaces(opts: {
   if (keyword.trim()) {
     const kw = keyword.trim().replace(/[%_\\]/g, c => `\\${c}`);
     req = req.or(`name.ilike.%${kw}%,quote.ilike.%${kw}%,description.ilike.%${kw}%`);
-  }
-
-  // ── DB category 過濾 ──────────────────────────────────────────────────
-  if (categories.length > 0) {
-    const dbCats: string[] = [];
-    categories.forEach(c => {
-      if (c === 'food')          dbCats.push('food', 'restaurant');
-      if (c === 'accommodation') dbCats.push('accommodation');
-      if (c === 'hidden')        dbCats.push('hidden', 'spring');
-      if (c === 'attraction')    dbCats.push('attraction', 'sea', 'ocean', 'mtn', 'valley', 'mountain', 'rail', 'south', 'city');
-    });
-    if (dbCats.length > 0) {
-      req = req.in('category', dbCats);
-    }
   }
 
   const { data, error } = await req;
@@ -210,16 +198,16 @@ function CategoryIcon({ cat, size = 13 }: { cat: SpotOption['category']; size?: 
 // ── FilterRow ──────────────────────────────────────────────────────────────
 
 const CHIP_ACTIVE = {
-  background: '#5A645A',
+  background: '#292524',
   color: 'white',
-  border: '1px solid #5A645A',
-  boxShadow: '0 2px 8px rgba(90,100,90,0.20)',
+  border: '1px solid transparent',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
 } as const;
 
 const CHIP_INACTIVE = {
   background: 'white',
-  color: '#8E8377',
-  border: '1px solid #E5E0D8',
+  color: '#44403c',
+  border: '1px solid #d6d3d1',
 } as const;
 
 function FilterRow<T extends string>({
@@ -237,7 +225,7 @@ function FilterRow<T extends string>({
     <div className="flex items-center gap-2 min-h-[26px]">
       <span
         className="shrink-0 text-[9px] w-[36px] text-right leading-tight"
-        style={{ color: '#8E8377' }}
+        style={{ color: '#57534e' }}
       >
         {rowLabel}
       </span>
@@ -262,14 +250,6 @@ function FilterRow<T extends string>({
 
 // ── Component ──────────────────────────────────────────────────────────────
 
-interface GooglePlaceResult {
-  id: string;
-  name: string;
-  address: string;
-  lat: number;
-  lng: number;
-}
-
 interface Props {
   dayLabel: string;
   context?: { name: string; lat: number; lng: number } | null;
@@ -281,6 +261,7 @@ interface Props {
 }
 
 export function AddStopSheet({ dayLabel, context, initialQuery, initialCategory, onAdd, onClose }: Props) {
+  const [isContentReady, setIsContentReady] = useState(false);
   const [query, setQuery] = useState(initialQuery ?? '');
 
   const [selectedRegions,    setSelectedRegions]    = useState<SpotOption['region'][]>([]);
@@ -288,6 +269,12 @@ export function AddStopSheet({ dayLabel, context, initialQuery, initialCategory,
     initialCategory ? [initialCategory] : [],
   );
   const [selectedVibes, setSelectedVibes] = useState<string[]>([]);
+
+  // ── 延遲渲染：等面板 spring 動畫完成再掛載景點列表 ──────────────────────
+  useEffect(() => {
+    const t = setTimeout(() => setIsContentReady(true), 300);
+    return () => clearTimeout(t);
+  }, []);
 
   // ── Debounced keyword（300ms，與 ExploreSheet 保持一致）────────────────
   const [debouncedQuery, setDebouncedQuery] = useState(query);
@@ -306,22 +293,15 @@ export function AddStopSheet({ dayLabel, context, initialQuery, initialCategory,
     setLoading(true);
 
     fetchPlaces({
-      keyword:    debouncedQuery,
-      regions:    selectedRegions,
-      categories: selectedCategories,
-      limit:      300,
+      keyword: debouncedQuery,
+      regions: selectedRegions,
+      limit:   300,
     }).then(results => {
       if (fetchSeq.current !== seq) return;   // stale，丟棄
       setSpots(results);
       setLoading(false);
     });
-  }, [debouncedQuery, selectedRegions, selectedCategories]);
-
-  // ── Google Places fallback ──────────────────────────────────────────────
-  const [googleQuery,      setGoogleQuery]      = useState('');
-  const [googleResults,    setGoogleResults]    = useState<GooglePlaceResult[]>([]);
-  const [googleLoading,    setGoogleLoading]    = useState(false);
-  const [showGoogleSearch, setShowGoogleSearch] = useState(false);
+  }, [debouncedQuery, selectedRegions]);
 
   function toggle<T>(setter: React.Dispatch<React.SetStateAction<T[]>>, value: T) {
     setter(prev => prev.includes(value) ? prev.filter(x => x !== value) : [...prev, value]);
@@ -335,57 +315,23 @@ export function AddStopSheet({ dayLabel, context, initialQuery, initialCategory,
 
   const activeFilterCount = selectedRegions.length + selectedCategories.length + selectedVibes.length;
 
-  async function handleGoogleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    if (!googleQuery.trim()) return;
-    setGoogleLoading(true);
-    setGoogleResults([]);
-    try {
-      const res = await fetch('/api/places', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: googleQuery }),
-      });
-      const data = await res.json();
-      if (data.places) {
-        setGoogleResults(
-          (data.places as any[]).map((p: any, idx: number) => ({
-            id: `google-${idx}-${Date.now()}`,
-            name: p.displayName?.text ?? googleQuery,
-            address: p.formattedAddress ?? '',
-            lat: p.location?.latitude ?? 22.75,
-            lng: p.location?.longitude ?? 121.15,
-          }))
-        );
-      }
-    } catch {
-      /* silent */
-    } finally {
-      setGoogleLoading(false);
-    }
-  }
-
-  function addGooglePlace(place: GooglePlaceResult) {
-    onAdd({
-      id:            place.id,
-      name:          place.name,
-      category:      'attraction',
-      region:        '台東市',
-      latitude:      place.lat,
-      longitude:     place.lng,
-      stay_duration: 60,
-      rating:        4.0,
-      rating_count:  0,
-      tip:           place.address || undefined,
-    });
-  }
-
-  // ── vibe 過濾（純 client-side，DB 無 vibe 欄位可查）──────────────────────
+  // ── client-side 精準過濾（雙保險：server 過濾失準時 client 把關）──────────
   const list = useMemo<SpotWithLink[]>(() => {
     let base = spots;
 
+    // 地區：spot.region 已由 mapDbRegion 對應 DB category → 直接比對
+    if (selectedRegions.length > 0) {
+      base = base.filter(s => selectedRegions.includes(s.region));
+    }
+
+    // 類型：spot.category 已由 mapPoiType 對應 DB poi_type（secret → hidden）
+    if (selectedCategories.length > 0) {
+      base = base.filter(s => selectedCategories.includes(s.category));
+    }
+
+    // 體驗：wild_tags 子集合
     if (selectedVibes.length > 0) {
-      base = base.filter(s => s.vibes && s.vibes.some(v => selectedVibes.includes(v)));
+      base = base.filter(s => s.vibes?.some(v => selectedVibes.includes(v)));
     }
 
     if (context) {
@@ -395,8 +341,8 @@ export function AddStopSheet({ dayLabel, context, initialQuery, initialCategory,
         return (distA * 2 - (a.rating - 3) * 10) - (distB * 2 - (b.rating - 3) * 10);
       });
     }
-    return base; // 伺服器已按 popularity 排序
-  }, [spots, selectedVibes, context]);
+    return base;
+  }, [spots, selectedRegions, selectedCategories, selectedVibes, context]);
 
   return (
     <>
@@ -436,19 +382,19 @@ export function AddStopSheet({ dayLabel, context, initialQuery, initialCategory,
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-2 pb-4 shrink-0">
           <div>
-            <p className="text-[15px] font-bold font-serif" style={{ color: '#5A645A' }}>
-              {context ? `探索 ${context.name} 周邊` : '新增景點'}
+            <p className="text-[15px] font-bold font-serif" style={{ color: '#1c1917' }}>
+              {context ? `探索 ${context.name} 周邊` : '新增景點至旅程'}
             </p>
-            <p className="text-[10px] mt-0.5" style={{ color: '#8E8377' }}>
+            <p className="text-[10px] mt-0.5 font-medium" style={{ color: '#57534e' }}>
               加入 {dayLabel}
             </p>
           </div>
           <button
             onClick={onClose}
             className="flex h-8 w-8 items-center justify-center rounded-full transition-colors"
-            style={{ background: 'rgba(90,100,90,0.06)', color: '#8E8377' }}
-            onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = 'rgba(90,100,90,0.12)')}
-            onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = 'rgba(90,100,90,0.06)')}
+            style={{ background: '#f5f5f4', color: '#44403c', border: '1px solid #d6d3d1' }}
+            onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = '#e7e5e4')}
+            onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = '#f5f5f4')}
           >
             <X size={14} />
           </button>
@@ -458,16 +404,16 @@ export function AddStopSheet({ dayLabel, context, initialQuery, initialCategory,
         <div className="px-5 pb-3 shrink-0">
           <div
             className="flex items-center gap-2.5 rounded-xl px-4 py-2.5"
-            style={{ background: 'white', border: '1px solid #E5E0D8' }}
+            style={{ background: 'white', border: '1px solid #d6d3d1' }}
           >
-            <Search size={13} style={{ color: '#8E8377', flexShrink: 0 }} />
+            <Search size={13} style={{ color: '#78716c', flexShrink: 0 }} />
             <input
               type="text"
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder="搜尋景點名稱，如：布農、初鹿、三仙台…"
-              className="flex-1 bg-transparent text-xs outline-none placeholder:text-[#A09488]/60"
-              style={{ color: '#5A645A', caretColor: '#5A645A' }}
+              className="flex-1 bg-transparent text-xs outline-none placeholder:text-stone-400"
+              style={{ color: '#1c1917', caretColor: '#1c1917' }}
             />
             <AnimatePresence>
               {query && (
@@ -476,7 +422,7 @@ export function AddStopSheet({ dayLabel, context, initialQuery, initialCategory,
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.7 }}
                   onClick={() => setQuery('')}
-                  style={{ color: '#8E8377' }}
+                  style={{ color: '#78716c' }}
                 >
                   <X size={11} />
                 </motion.button>
@@ -512,7 +458,7 @@ export function AddStopSheet({ dayLabel, context, initialQuery, initialCategory,
 
         {/* Result count + clear */}
         <div className="px-5 py-2 shrink-0 flex items-center justify-between">
-          <p className="text-[9px] uppercase tracking-[0.4em]" style={{ color: '#A09488' }}>
+          <p className="text-[9px] uppercase tracking-[0.4em]" style={{ color: '#57534e' }}>
             {loading
               ? '搜尋中…'
               : `${list.length} 個結果 · ${context ? '附近推薦 · 依距離排序' : '依熱度排序'}`}
@@ -524,12 +470,14 @@ export function AddStopSheet({ dayLabel, context, initialQuery, initialCategory,
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.85 }}
                 onClick={clearAllFilters}
-                className="flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-full"
+                className="flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-full transition-colors"
                 style={{
-                  background: 'rgba(90,100,90,0.06)',
-                  color: '#8E8377',
-                  border: '1px solid rgba(90,100,90,0.15)',
+                  background: 'white',
+                  color: '#44403c',
+                  border: '1px solid #d6d3d1',
                 }}
+                onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = '#f5f5f4')}
+                onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = 'white')}
               >
                 <X size={8} />
                 清除 {activeFilterCount} 項篩選
@@ -540,147 +488,66 @@ export function AddStopSheet({ dayLabel, context, initialQuery, initialCategory,
 
         {/* List */}
         <div className="flex-1 overflow-y-auto px-5 pb-10" style={{ scrollbarWidth: 'none' }}>
-          {/* Loading skeleton */}
-          {loading && (
-            <div className="flex flex-col gap-2.5">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-16 w-full rounded-xl animate-pulse"
-                  style={{ background: '#F0EDE8' }}
-                />
-              ))}
+          {!isContentReady ? (
+            <div className="flex justify-center items-center py-10" style={{ color: '#a8a29e' }}>
+              <span className="text-xs">載入景點中…</span>
             </div>
-          )}
-
-          {!loading && list.length === 0 && (
-            <div className="py-14 flex flex-col items-center gap-3">
-              <div className="text-3xl opacity-60">🔍</div>
-              <p className="text-sm font-medium" style={{ color: '#8E8377' }}>
-                找不到符合條件的景點
-              </p>
-              <p className="text-[11px] text-center" style={{ color: '#A09488' }}>
-                {query ? `找不到「${query}」，試試其他關鍵字` : '試試減少篩選標籤'}
-              </p>
-              {activeFilterCount > 0 && (
-                <button
-                  onClick={clearAllFilters}
-                  className="mt-1 px-4 py-1.5 rounded-full text-[11px] font-semibold transition-all"
-                  style={{
-                    background: 'rgba(90,100,90,0.06)',
-                    color: '#5A645A',
-                    border: '1px solid rgba(90,100,90,0.15)',
-                  }}
-                >
-                  清除所有篩選
-                </button>
-              )}
-            </div>
-          )}
-
-          {!loading && list.length > 0 && (
-            <div className="flex flex-col gap-2.5">
-              {list.map(spot => (
-                <SpotRow
-                  key={spot.id}
-                  spot={spot}
-                  distKm={context ? haversineKm(context.lat, context.lng, spot.latitude, spot.longitude) : undefined}
-                  prevStopName={context?.name}
-                  onAdd={onAdd}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Google Places fallback */}
-          {!loading && !showGoogleSearch && (
-            <button
-              onClick={() => setShowGoogleSearch(true)}
-              className="mt-6 w-full flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-semibold transition-all"
-              style={{
-                border: '1px dashed rgba(90,100,90,0.25)',
-                color: '#8E8377',
-                background: 'transparent',
-              }}
-              onMouseEnter={e => {
-                const el = e.currentTarget as HTMLButtonElement;
-                el.style.borderColor = 'rgba(90,100,90,0.50)';
-                el.style.color = '#5A645A';
-              }}
-              onMouseLeave={e => {
-                const el = e.currentTarget as HTMLButtonElement;
-                el.style.borderColor = 'rgba(90,100,90,0.25)';
-                el.style.color = '#8E8377';
-              }}
-            >
-              <Search size={11} />
-              找不到地點？使用 Google 地圖搜尋並加入
-            </button>
-          )}
-
-          {showGoogleSearch && (
-            <div className="mt-6 flex flex-col gap-3">
-              <p className="text-[9px] tracking-[0.45em] uppercase" style={{ color: '#A09488' }}>
-                Google 地圖搜尋
-              </p>
-              <form onSubmit={handleGoogleSearch} className="flex gap-2">
-                <input
-                  type="text"
-                  value={googleQuery}
-                  onChange={e => setGoogleQuery(e.target.value)}
-                  placeholder="搜尋全台灣任何地點…"
-                  autoFocus
-                  className="flex-1 rounded-xl px-4 py-2.5 text-xs outline-none"
-                  style={{ background: 'white', border: '1px solid #E5E0D8', color: '#5A645A', caretColor: '#5A645A' }}
-                />
-                <button
-                  type="submit"
-                  disabled={googleLoading}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all"
-                  style={{ background: '#5A645A', color: 'white', border: '1px solid #5A645A' }}
-                >
-                  {googleLoading ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
-                  搜尋
-                </button>
-              </form>
-
-              {googleResults.length > 0 && (
-                <div className="flex flex-col gap-2">
-                  {googleResults.map(place => (
+          ) : (
+            <>
+              {/* Loading skeleton */}
+              {loading && (
+                <div className="flex flex-col gap-2.5">
+                  {Array.from({ length: 5 }).map((_, i) => (
                     <div
-                      key={place.id}
-                      className="flex items-center gap-3 p-3 rounded-xl"
-                      style={{ background: 'white', border: '1px solid #E5E0D8' }}
-                    >
-                      <div
-                        className="shrink-0 flex h-9 w-9 items-center justify-center rounded-xl"
-                        style={{ background: 'rgba(90,100,90,0.06)' }}
-                      >
-                        <MapPin size={13} style={{ color: '#5A645A' }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold truncate" style={{ color: '#5A645A' }}>
-                          {place.name}
-                        </p>
-                        <p className="text-[10px] truncate mt-0.5" style={{ color: '#8E8377' }}>
-                          {place.address}
-                        </p>
-                      </div>
-                      <motion.button
-                        whileTap={{ scale: 0.92 }}
-                        onClick={() => addGooglePlace(place)}
-                        className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-bold"
-                        style={{ background: '#5A645A', color: 'white', border: '1px solid #5A645A' }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#4A5449'; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#5A645A'; }}
-                      >
-                        <Plus size={10} />加入
-                      </motion.button>
-                    </div>
+                      key={i}
+                      className="h-16 w-full rounded-xl animate-pulse"
+                      style={{ background: '#F0EDE8' }}
+                    />
                   ))}
                 </div>
               )}
-            </div>
+
+              {!loading && list.length === 0 && (
+                <div className="py-14 flex flex-col items-center gap-3">
+                  <div className="text-3xl opacity-60">🔍</div>
+                  <p className="text-sm font-medium" style={{ color: '#8E8377' }}>
+                    找不到符合條件的景點
+                  </p>
+                  <p className="text-[11px] text-center" style={{ color: '#A09488' }}>
+                    {query ? `找不到「${query}」，試試其他關鍵字` : '試試減少篩選標籤'}
+                  </p>
+                  {activeFilterCount > 0 && (
+                    <button
+                      onClick={clearAllFilters}
+                      className="mt-1 px-4 py-1.5 rounded-full text-[11px] font-semibold transition-colors"
+                      style={{
+                        background: 'white',
+                        color: '#44403c',
+                        border: '1px solid #d6d3d1',
+                      }}
+                      onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = '#f5f5f4')}
+                      onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = 'white')}
+                    >
+                      清除所有篩選
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {!loading && list.length > 0 && (
+                <div className="flex flex-col gap-2.5">
+                  {list.map(spot => (
+                    <SpotRow
+                      key={spot.id}
+                      spot={spot}
+                      distKm={context ? haversineKm(context.lat, context.lng, spot.latitude, spot.longitude) : undefined}
+                      prevStopName={context?.name}
+                      onAdd={onAdd}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       </motion.div>
@@ -730,7 +597,7 @@ function SpotRow({
       {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-sm font-medium truncate" style={{ color: '#5A645A' }}>
+          <p className="text-sm font-bold truncate" style={{ color: '#1c1917' }}>
             {spot.name}
           </p>
           <span
@@ -760,26 +627,26 @@ function SpotRow({
 
         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
           <Star size={9} style={{ color: '#D7AF70', fill: '#D7AF70', flexShrink: 0 }} />
-          <span className="text-[10px] font-bold" style={{ color: '#5A645A' }}>
+          <span className="text-[10px] font-bold" style={{ color: '#292524' }}>
             {spot.rating}
           </span>
-          <span className="text-[9px]" style={{ color: '#A09488' }}>
+          <span className="text-[9px]" style={{ color: '#78716c' }}>
             ({spot.rating_count.toLocaleString()})
           </span>
-          <span style={{ color: '#C8C0B8' }} className="text-[9px]">·</span>
-          <span className="text-[10px]" style={{ color: '#8E8377' }}>
+          <span style={{ color: '#a8a29e' }} className="text-[9px]">·</span>
+          <span className="text-[10px]" style={{ color: '#57534e' }}>
             {spot.region}
           </span>
         </div>
 
         {distKm !== undefined && prevStopName && (
-          <p className="text-[10px] mt-0.5" style={{ color: '#5A645A' }}>
+          <p className="text-[10px] mt-0.5" style={{ color: '#44403c' }}>
             📍 距離 {prevStopName} 約 {distKm.toFixed(1)} 公里（車程 {Math.max(1, Math.round(distKm / 0.65))} 分鐘）
           </p>
         )}
 
         {spot.tip && (
-          <p className="text-[10px] mt-0.5 truncate" style={{ color: '#8E8377' }}>
+          <p className="text-[10px] mt-0.5 truncate" style={{ color: '#57534e' }}>
             {spot.tip}
           </p>
         )}
@@ -792,16 +659,17 @@ function SpotRow({
         whileTap={{ scale: 0.92 }}
         className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-bold transition-all"
         style={added ? {
-          background: 'rgba(90,100,90,0.08)',
-          color: '#8E8377',
-          border: '1px solid rgba(90,100,90,0.15)',
+          background: '#f5f5f4',
+          color: '#78716c',
+          border: '1px solid #d6d3d1',
         } : {
-          background: '#5A645A',
+          background: '#292524',
           color: 'white',
-          border: '1px solid #5A645A',
+          border: '1px solid #292524',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
         }}
-        onMouseEnter={e => { if (!added) (e.currentTarget as HTMLElement).style.background = '#4A5449'; }}
-        onMouseLeave={e => { if (!added) (e.currentTarget as HTMLElement).style.background = '#5A645A'; }}
+        onMouseEnter={e => { if (!added) (e.currentTarget as HTMLElement).style.background = '#1c1917'; }}
+        onMouseLeave={e => { if (!added) (e.currentTarget as HTMLElement).style.background = '#292524'; }}
       >
         {added ? '✓' : <><Plus size={10} />加入</>}
       </motion.button>

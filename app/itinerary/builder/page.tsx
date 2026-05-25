@@ -1203,8 +1203,8 @@ export default function BuilderPage() {
                     >
                       <div className="flex items-center gap-2.5">
                         <div>
-                          <span className="font-serif text-xs font-bold" style={{ color: '#5A645A' }}>Day {day.day}</span>
-                          <span className="ml-2 text-[10px]" style={{ color: 'rgba(90,100,90,0.45)' }}>
+                          <span className="font-serif text-xs font-bold" style={{ color: '#1c1917' }}>Day {day.day}</span>
+                          <span className="ml-2 text-[10px] font-medium" style={{ color: '#78716c' }}>
                             {day.date.slice(5).replace('-', '/')}
                           </span>
                         </div>
@@ -1225,10 +1225,10 @@ export default function BuilderPage() {
 
                       <button
                         onClick={() => removeDay(i)}
-                        className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full transition-all duration-200"
-                        style={{ color: 'rgba(90,100,90,0.30)', border: '1px solid transparent' }}
-                        onMouseEnter={e => { const el = e.currentTarget; el.style.color = 'rgba(239,68,68,0.65)'; el.style.borderColor = 'rgba(239,68,68,0.18)'; el.style.background = 'rgba(239,68,68,0.05)'; }}
-                        onMouseLeave={e => { const el = e.currentTarget; el.style.color = 'rgba(90,100,90,0.30)'; el.style.borderColor = 'transparent'; el.style.background = 'transparent'; }}
+                        className="flex items-center gap-1 text-[10px] font-medium px-2.5 py-1 rounded-full transition-all duration-200"
+                        style={{ color: '#78716c', border: '1px solid transparent' }}
+                        onMouseEnter={e => { const el = e.currentTarget; el.style.color = '#dc2626'; el.style.borderColor = 'rgba(220,38,38,0.20)'; el.style.background = 'rgba(220,38,38,0.05)'; }}
+                        onMouseLeave={e => { const el = e.currentTarget; el.style.color = '#78716c'; el.style.borderColor = 'transparent'; el.style.background = 'transparent'; }}
                         title={`刪除 Day ${day.day}`}
                       >
                         <X size={11} />

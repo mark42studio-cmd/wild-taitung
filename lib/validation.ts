@@ -209,6 +209,8 @@ export const ApproveOverridesSchema = z.object({
   image_url:   z.string().url('圖片須為合法 URL').max(500).nullable(),
   quote:       z.string().trim().max(40).nullable(),
   tags:        z.array(z.string().trim().max(30)).max(10),
+  lat:         z.number().min(-90, '緯度不得低於 -90').max(90, '緯度不得超過 90').nullable().optional(),
+  lng:         z.number().min(-180, '經度不得低於 -180').max(180, '經度不得超過 180').nullable().optional(),
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

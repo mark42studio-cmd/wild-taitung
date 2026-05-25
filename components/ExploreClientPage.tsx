@@ -44,6 +44,7 @@ export default function ExploreClientPage() {
   const [showAbandonConfirm, setShowAbandonConfirm] = useState(false);
   const [committing, setCommitting] = useState(false);
   const [previewToast, setPreviewToast] = useState<string | null>(null);
+  const [fabOpen, setFabOpen] = useState(false);
 
   async function handleCommitPreview() {
     if (!previewMeta || committing) return;
@@ -243,16 +244,16 @@ export default function ExploreClientPage() {
         )}
       </AnimatePresence>
 
-      {/* ── Challenge HUD — top-center pill ── */}
+      {/* ── Challenge HUD: large screens (sm+) ── */}
       <AnimatePresence>
         {currentChallengeName && !sheetExpanded && (
           <motion.div
-            key="challenge-hud"
+            key="challenge-hud-lg"
             initial={{ opacity: 0, y: 16, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.9 }}
             transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-            className="fixed bottom-[80px] left-1/2 -translate-x-1/2 z-50"
+            className="hidden sm:block fixed bottom-[80px] left-1/2 -translate-x-1/2 z-50"
           >
             <div
               className="flex h-12 w-fit max-w-xs items-center gap-2 rounded-xl px-3 text-xs font-bold"
@@ -278,6 +279,66 @@ export default function ExploreClientPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Mobile bottom row: Challenge HUD + FAB trigger (sm:hidden) ── */}
+      {/* items-center guarantees the ? button's vertical center matches the challenge box's */}
+      <motion.div
+        animate={sheetExpanded
+          ? { opacity: 0, y: 8, pointerEvents: 'none' }
+          : { opacity: 1, y: 0, pointerEvents: 'auto' }
+        }
+        transition={{ type: 'spring', stiffness: 340, damping: 28 }}
+        className="fixed bottom-[80px] left-0 right-0 z-[100] sm:hidden flex items-center justify-center px-4"
+      >
+        {/* Left spacer = w-6 (button) + ml-4 (gap) = w-10, mirrors the right side to keep the box centered */}
+        <div className="w-10 shrink-0" />
+
+        {/* Challenge box */}
+        <div className="flex flex-grow justify-center min-w-0">
+          <AnimatePresence>
+            {currentChallengeName && (
+              <motion.div
+                key="challenge-box-mobile"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+                className="flex h-12 w-fit max-w-[200px] items-center gap-2 rounded-xl px-3 text-xs font-bold"
+                style={{
+                  background: 'rgba(253,251,246,0.96)',
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                  border: '1px solid rgba(90,100,90,0.20)',
+                  color: '#5A645A',
+                  boxShadow: '0 4px 24px rgba(90,100,90,0.12), 0 2px 8px rgba(0,0,0,0.06)',
+                }}
+              >
+                <span className="shrink-0">⚔️</span>
+                <span className="truncate">挑戰中：{currentChallengeName}</span>
+                <button
+                  onClick={() => setShowAbandonConfirm(true)}
+                  className="shrink-0 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-red-500 text-[10px] text-white shadow-md transition-colors hover:bg-red-600"
+                  title="放棄挑戰"
+                >
+                  ✕
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* FAB trigger — w-6 h-6 (half of original w-12 h-12); vertical center aligned via parent items-center */}
+        <motion.button
+          id="tour-fab-toggle"
+          onClick={() => setFabOpen(f => !f)}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.93 }}
+          className="ml-4 shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-stone-800 text-white shadow-lg transition-all duration-150 hover:bg-stone-700 active:scale-95"
+          title={fabOpen ? '收起' : '更多動作'}
+        >
+          <span className="text-[11px] leading-none font-semibold">?</span>
+        </motion.button>
+      </motion.div>
 
       {/* ── Abandon confirmation modal ── */}
       <AnimatePresence>
@@ -335,14 +396,23 @@ export default function ExploreClientPage() {
         )}
       </AnimatePresence>
 
-      {/* ── Day filter panel (left side) ── */}
-      <MapDayFilter
-        isSheetOpen={sheetExpanded}
-        onOpenBuilder={() => router.push('/itinerary/builder')}
-      />
-
-      {/* ── Top-right operational action buttons ── */}
-      <TopRightActionNav isSheetOpen={sheetExpanded} />
+      {/* ── Top-right: large-screen nav + day filter toggle (有挑戰時才顯示) ── */}
+      <motion.div
+        initial={{ opacity: 0, x: 16 }}
+        animate={sheetExpanded
+          ? { opacity: 0, x: 72, pointerEvents: 'none' }
+          : { opacity: 1, x: 0, pointerEvents: 'auto' }
+        }
+        transition={{ type: 'spring', stiffness: 340, damping: 28 }}
+        className="fixed top-4 right-4 z-50 flex flex-col gap-3 items-end"
+      >
+        <TopRightActionNav
+          sheetExpanded={sheetExpanded}
+          fabOpen={fabOpen}
+          onFabClose={() => setFabOpen(false)}
+        />
+        <MapDayFilter onOpenBuilder={() => router.push('/itinerary/builder')} />
+      </motion.div>
 
       {/* ── Layer 1: Explore Sheet ── */}
       <ExploreSheet

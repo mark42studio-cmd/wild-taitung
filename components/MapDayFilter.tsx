@@ -7,7 +7,6 @@ import { useItineraryStore } from '@/store/useItineraryStore';
 import { buildTripDateRange } from '@/lib/tripDates';
 
 interface Props {
-  isSheetOpen?: boolean;
   onOpenBuilder?: () => void;
 }
 
@@ -49,7 +48,7 @@ const AFFILIATE_ITEMS = [
   { id: 'rental',        emoji: '🚗', label: '租車', url: 'https://www.kkday.com/' },
 ] as const;
 
-export default function MapDayFilter({ isSheetOpen = false, onOpenBuilder }: Props) {
+export default function MapDayFilter({ onOpenBuilder }: Props) {
   const {
     plannedEvents,
     previewMeta,
@@ -99,17 +98,7 @@ export default function MapDayFilter({ isSheetOpen = false, onOpenBuilder }: Pro
   return (
     <>
       {/* ── Day filter sidebar ── */}
-      <motion.div
-        initial={{ opacity: 0, x: 12 }}
-        animate={isSheetOpen
-          ? { opacity: 0, x: 72, pointerEvents: 'none' }
-          : { opacity: 1, x: 0,  pointerEvents: 'auto' }
-        }
-        exit={{ opacity: 0, x: 12 }}
-        transition={{ type: 'spring', stiffness: 340, damping: 28 }}
-        className="fixed top-5 right-4 z-[40] flex flex-col gap-1"
-        style={{ transformOrigin: 'top right' }}
-      >
+      <div className="flex flex-col gap-1 items-end">
         {/* Toggle button — always visible */}
         <button
           id="tour-filter-toggle"
@@ -197,7 +186,7 @@ export default function MapDayFilter({ isSheetOpen = false, onOpenBuilder }: Pro
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.div>
+      </div>
 
       {/* ── Empty-day center overlay ── */}
       <AnimatePresence>

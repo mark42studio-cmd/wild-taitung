@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Noto_Serif_TC } from "next/font/google";
-import Image from "next/image";
 import "./globals.css";
 import TourGuide from '@/components/TourGuide';
 import PwaInstallGuide from '@/components/PwaInstallGuide';
@@ -117,10 +116,6 @@ export default function RootLayout({
 
         {children}
 
-        <footer className="mt-auto py-6 flex items-center justify-center gap-2 text-xs text-gray-500">
-          <Image src="/icon.png" alt="一圈工作室" width={24} height={24} className="opacity-70" />
-          一圈工作室 | mark42studio@gmail.com
-        </footer>
       </body>
     </html>
   );

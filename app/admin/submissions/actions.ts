@@ -17,6 +17,8 @@ type ApproveOverrides = {
   image_url: string | null
   quote: string | null
   tags: string[]
+  lat?: number | null
+  lng?: number | null
 }
 
 export async function approveSubmission(
@@ -37,6 +39,9 @@ export async function approveSubmission(
   const dbCategory = ROUTE_TO_CAT[row.location as string] ?? 'city'
 
   if ((row.category as string) === 'spot') {
+    if (safeOverrides.lat == null || safeOverrides.lng == null) {
+      return { error: '景點必須填入緯度（lat）與經度（lng）' }
+    }
     const { error: insertErr } = await sb
       .from('places')
       .insert([{
@@ -47,6 +52,8 @@ export async function approveSubmission(
         category:    dbCategory,
         image_url:   safeOverrides.image_url || null,
         popularity:  0,
+        lat:         safeOverrides.lat,
+        lng:         safeOverrides.lng,
       }])
     if (insertErr) return { error: insertErr.message }
   } else {
