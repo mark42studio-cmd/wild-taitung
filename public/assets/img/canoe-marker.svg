@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52" fill="none">
+  <!-- 主船體 -->
+  <ellipse cx="26" cy="34" rx="19" ry="6.5" fill="#2C1810"/>
+  <!-- 船體紅色裝飾條 -->
+  <path d="M8.5 31 C15 27 37 27 43.5 31" stroke="#C0392B" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <path d="M8.5 37 C15 41 37 41 43.5 37" stroke="#C0392B" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <!-- 船首裝飾 -->
+  <path d="M43.5 34 L48 30 L43.5 28" fill="#F5E6C8" stroke="#2C1810" stroke-width="0.5"/>
+  <!-- 船尾裝飾 -->
+  <path d="M8.5 34 L4 30 L8.5 28" fill="#F5E6C8" stroke="#2C1810" stroke-width="0.5"/>
+  <!-- 傳統白色幾何紋樣 -->
+  <path d="M18 32 L26 28.5 L34 32" stroke="#F5F5DC" stroke-width="1" fill="none"/>
+  <line x1="26" y1="28.5" x2="26" y2="34.5" stroke="#F5F5DC" stroke-width="0.8" stroke-dasharray="1.5 1.5"/>
+  <!-- 外伸浮桿 (舷外支架) -->
+  <line x1="17" y1="29" x2="14" y2="20" stroke="#5C3A1E" stroke-width="2" stroke-linecap="round"/>
+  <line x1="29" y1="29" x2="32" y2="20" stroke="#5C3A1E" stroke-width="2" stroke-linecap="round"/>
+  <line x1="21" y1="29" x2="20" y2="20" stroke="#5C3A1E" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- 浮子 (ama) -->
+  <ellipse cx="23" cy="19" rx="11" ry="3.5" fill="#2C1810" stroke="#5C3A1E" stroke-width="1"/>
+  <!-- 浮子紋路 -->
+  <path d="M14 19 C18 16.5 28 16.5 32 19" stroke="#C0392B" stroke-width="1" fill="none"/>
+  <!-- 槳 -->
+  <line x1="35" y1="28" x2="42" y2="17" stroke="#5C3A1E" stroke-width="2" stroke-linecap="round"/>
+  <ellipse cx="42" cy="15.5" rx="2.5" ry="4.5" fill="#5C3A1E" transform="rotate(-38 42 15.5)"/>
+  <!-- 日出符號 (達悟族圖騰) -->
+  <circle cx="26" cy="13" r="3" fill="#E8A020" opacity="0.85"/>
+  <line x1="26" y1="8" x2="26" y2="6" stroke="#E8A020" stroke-width="1.5" stroke-linecap="round" opacity="0.85"/>
+  <line x1="30" y1="9.5" x2="31.5" y2="8" stroke="#E8A020" stroke-width="1.5" stroke-linecap="round" opacity="0.85"/>
+  <line x1="22" y1="9.5" x2="20.5" y2="8" stroke="#E8A020" stroke-width="1.5" stroke-linecap="round" opacity="0.85"/>
+</svg>

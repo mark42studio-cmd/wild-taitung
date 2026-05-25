@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#EEE0C4"/>
+      <stop offset="55%" stop-color="#DEC99A"/>
+      <stop offset="100%" stop-color="#C9A96E"/>
+    </linearGradient>
+    <linearGradient id="far-mtn" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7A8A78" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#4A5A48" stop-opacity="0.9"/>
+    </linearGradient>
+    <linearGradient id="near-mtn" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5A6A58"/>
+      <stop offset="100%" stop-color="#3A4A38"/>
+    </linearGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#9BBCCC"/>
+      <stop offset="100%" stop-color="#6A9AB0"/>
+    </linearGradient>
+    <filter id="blur-mtn">
+      <feGaussianBlur stdDeviation="1.5"/>
+    </filter>
+  </defs>
+
+  <!-- Sky -->
+  <rect width="800" height="400" fill="url(#sky)"/>
+
+  <!-- Sun halo -->
+  <circle cx="620" cy="110" r="70" fill="#D7AF70" opacity="0.12"/>
+  <circle cx="620" cy="110" r="42" fill="#D7AF70" opacity="0.18"/>
+  <circle cx="620" cy="110" r="22" fill="#D7AF70" opacity="0.32"/>
+
+  <!-- Horizon water -->
+  <rect x="0" y="300" width="800" height="100" fill="url(#water)"/>
+
+  <!-- Water shimmer lines -->
+  <line x1="80"  y1="320" x2="200" y2="320" stroke="white" stroke-width="1" opacity="0.18"/>
+  <line x1="320" y1="328" x2="520" y2="328" stroke="white" stroke-width="1" opacity="0.14"/>
+  <line x1="600" y1="315" x2="750" y2="315" stroke="white" stroke-width="1" opacity="0.16"/>
+
+  <!-- Far mountain range -->
+  <path d="M0,300 L60,195 L130,228 L210,162 L300,205 L390,148 L470,183 L550,158 L630,188 L700,162 L760,185 L800,170 L800,300 Z"
+        fill="url(#far-mtn)" filter="url(#blur-mtn)"/>
+
+  <!-- Near mountain range -->
+  <path d="M0,300 L50,248 L110,268 L185,218 L265,255 L350,200 L430,238 L505,210 L565,244 L630,218 L690,242 L750,222 L800,238 L800,300 Z"
+        fill="url(#near-mtn)"/>
+
+  <!-- Subtle foreground ridge -->
+  <path d="M0,300 L120,282 L280,292 L400,278 L560,288 L720,276 L800,284 L800,300 Z"
+        fill="#3A4A38" opacity="0.5"/>
+
+  <!-- Brand watermark -->
+  <text x="400" y="385" font-family="Georgia, serif" font-size="11" fill="#5A645A"
+        opacity="0.22" text-anchor="middle" letter-spacing="10">WILD TAITUNG</text>
+</svg>
